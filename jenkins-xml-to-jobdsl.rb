@@ -61,6 +61,7 @@ class SvnScmLocationNodeHandler < Struct.new(:node)
       when 'remote'
         svnurl = "#{i.text}"
       else
+        puts "[-] ERROR SvnScmLocationNodeHandler unhandled element #{i}"
         pp i
       end
     end
@@ -78,6 +79,7 @@ class SvnScmLocationNodeHandler < Struct.new(:node)
       when 'ignoreExternalsOption'
           puts " " * currentDepth + "ignoreExternals(#{i.text})"
       else
+        puts "[-] ERROR SvnScmLocationNodeHandler unhandled element #{i}"
         pp i
       end
     end
@@ -97,6 +99,7 @@ class SvnScmDefinitionNodeHandler < Struct.new(:node)
           when 'hudson.scm.SubversionSCM_-ModuleLocation'
             SvnScmLocationNodeHandler.new(j).process(job_name, currentDepth, indent)
           else
+            puts "[-] ERROR SvnScmDefinitionNodeHandler unhandled element #{i}"
             pp j
           end
         end
@@ -123,12 +126,14 @@ class SvnScmDefinitionNodeHandler < Struct.new(:node)
           when 'hudson.scm.subversion.UpdateWithRevertUpdater'
             strategy += 'UPDATE_WITH_REVERT'
           else
+            puts "[-] ERROR SvnScmDefinitionNodeHandler unhandled element #{i}"
             pp i
           end
           puts " " * currentDepth + "checkoutStrategy(#{strategy})"
       when 'ignoreDirPropChanges', 'filterChangelog'
           # todo: figure out how to merge these into a configure {} block, since they aren't full supported yet
       else
+        puts "[-] ERROR SvnScmDefinitionNodeHandler unhandled element #{i}"
         pp i
       end
     end
@@ -147,9 +152,11 @@ class MatrixAuthorizationNodeHandler < Struct.new(:node)
           p, u = i.text.split(":")
           puts " " * currentDepth + "permission(perm = '#{p}', user = '#{u}')"
         else
+          puts "[-] ERROR MatrixAuthorizationNodeHandler unhandled element #{i}"
           pp i
         end
       else
+        puts "[-] ERROR MatrixAuthorizationNodeHandler unhandled element #{i}"
         pp i
       end
     end
@@ -166,6 +173,7 @@ class RebuildNodeHandler < Struct.new(:node)
       when 'autoRebuild', 'rebuildDisabled'
         puts " " * currentDepth + "#{i.name}(#{i.text})"
       else
+        puts "[-] ERROR RebuildNodeHandler unhandled element #{i}"
         pp i
       end
     end
@@ -182,6 +190,7 @@ class LogRotatorNodeHandler < Struct.new(:node)
       when 'daysToKeep', 'numToKeep', 'artifactDaysToKeep', 'artifactNumToKeep'
         puts " " * currentDepth + "#{i.name}(#{i.text})"
       else
+        puts "[-] ERROR LogRotatorNodeHandler unhandled element #{i}"
         pp i
       end
     end
@@ -196,6 +205,7 @@ class BuildDiscarderNodeHandler < Struct.new(:node)
      if i.attribute('class')&.value == 'hudson.tasks.LogRotator'
        LogRotatorNodeHandler.new(i).process(job_name, currentDepth, indent)
      else
+       puts "[-] ERROR BuildDiscarderNodeHandler unhandled element #{i}"
        pp i
      end
     end
@@ -227,7 +237,7 @@ class ParametersNodeHandler < Struct.new(:node)
           value = "null"
         end
       when 'choices'
-        if p.attribute('class').value == 'java.util.Arrays$ArrayList'
+        if p.attribute('class')&.value == 'java.util.Arrays$ArrayList'
           value = "["
           p.elements.each do |k|
             case k.name
@@ -236,15 +246,18 @@ class ParametersNodeHandler < Struct.new(:node)
                 value += k.elements.map{|s| "'#{s.text}'"}.join ', '
               end
             else
+              puts "[-] ERROR ParametersNodeHandler 1 unhandled element #{k}"
               pp k
             end
           end
           value += "]"
         else
+          puts "[-] ERROR ParametersNodeHandler 2 unhandled element #{p}"
           pp p
         end
       else
-        pp p
+        #puts "[-] ERROR ParametersNodeHandler 3 unhandled element #{p}"
+        #pp p
       end
     end
     return name, value, description
@@ -284,7 +297,7 @@ class ParametersNodeHandler < Struct.new(:node)
         param_block << " " * currentDepth + "   https://support.cloudbees.com/hc/en-us/articles/203802500-Injecting-Secrets-into-Jenkins-Build-Jobs */"
         param_block << ""
       else
-        param_block << "#{pp i}"
+        param_block << "[-] ERROR SvnScmLocationNodeHandler unhandled element #{pp i}"
       end
     end
     param_block << " " * depth + "}"
@@ -384,7 +397,8 @@ class PropertiesNodeHandler < Struct.new(:node)
             # hack... should really be nested under properties {} but jobdsl doesnt support this yet
             parameter_node_block = ParametersNodeHandler.new(p).process(job_name, depth, indent)
           else
-            pp p
+            puts "[-] ERROR PropertiesNodeHandler parameterDefinitions: unhandled element #{p}"
+            pp p 
           end
         end
       when 'jenkins.model.BuildDiscarderProperty'
@@ -400,7 +414,12 @@ class PropertiesNodeHandler < Struct.new(:node)
         ).save!
       when 'hudson.plugins.copyartifact.CopyArtifactPermissionProperty'
         CopyArtifactPermissionPropertyHandler.new(i).process(job_name, currentDepth, indent)
+      when 'hudson.plugins.jira.JiraProjectProperty'
+        # @todo(ln) ignored
+      when 'org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty'
+        puts " " * currentDepth + 'disableConcurrentBuilds()'
       else
+        puts "[-] ERROR PropertiesNodeHandler: unhandled element #{i}"
         pp i
       end
     end
@@ -470,6 +489,8 @@ class GitScmExtensionsNodeHandler < Struct.new(:node)
 end
 
 class GitScmDefinitionNodeHandler < Struct.new(:node)
+  include Helper
+
   def process(job_name, depth, indent)
     puts " " * depth + "git {"
     currentDepth = depth + indent
@@ -509,7 +530,7 @@ class GitScmDefinitionNodeHandler < Struct.new(:node)
         end
         puts " " * currentDepth + "}"
       when 'gitTool', 'doGenerateSubmoduleConfigurations'
-        configureBlock << "'#{i.name}'('#{i.text}')" unless i.text.empty?
+        configureBlock << "#{i.name}(#{formatText i.text})" unless i.text.empty? 
       when'submoduleCfg'
         # todo: not yet implemented
       when 'extensions'
@@ -549,7 +570,10 @@ class CpsScmDefinitionNodeHandler < Struct.new(:node)
         ScmDefinitionNodeHandler.new(i).process(job_name, currentDepth, indent)
       when 'scriptPath'
         puts " " * currentDepth + "scriptPath('#{i.text}')"
+      when 'lightweight'
+        puts " " * currentDepth + "#{i.name}(#{i.text})"
       else
+        puts "[-] ERROR CpsScmNodeHandler: unhandled element #{i}"
         pp i
       end
     end
@@ -612,8 +636,10 @@ class FlowDefinitionNodeHandler < Struct.new(:node)
         if !(i.text.nil? || i.text.empty?)
           puts " " * currentDepth + "#{i.name}('''\\\n#{removeCarriage i.text}\n''')"
         end
-      when 'keepDependencies', 'quietPeriod'
+      when 'keepDependencies', 'quietPeriod', 'disabled'
         puts " " * currentDepth + "#{i.name}(#{i.text})"
+      when 'displayName'
+        puts " " * currentDepth + "#{i.name}('#{i.text}')"
       when 'properties'
         PropertiesNodeHandler.new(i).process(job_name, currentDepth, indent)
       when 'definition'
@@ -627,6 +653,7 @@ class FlowDefinitionNodeHandler < Struct.new(:node)
       when 'logRotator'
         LogRotatorNodeHandler.new(i).process(job_name, currentDepth, indent)
       else
+        puts "[-] ERROR FlowDefinitionNodeHandler: unhandled element #{i}"
         pp i
       end
     end
@@ -1553,6 +1580,18 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
         end
         currentDepth -= indent
         puts " " * currentDepth + "}"
+      when 'jenkins.scm.impl.trait.WildcardSCMHeadFilterTrait' 
+        puts " " * currentDepth + "headWildcardFilter {"
+        currentDepth += indent
+        i.elements.each do |ii|
+          if !['includes', 'excludes'].include?(ii.name)
+            puts "[-] ERROR BBSCMSourceTraitsHandler WildcardSCMHeadFilterTrait: unhandled element #{ii.name}"
+            pp ii
+          end
+          puts " " * currentDepth + " #{ii.name}('#{ii.text}')" 
+        end
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
       when 'com.cloudbees.jenkins.plugins.bitbucket.SSHCheckoutTrait' 
         puts " " * currentDepth + "bitbucketSshCheckout {"
         currentDepth += indent
@@ -1584,6 +1623,34 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
                   puts "[-] ERROR BBSCMSourceTraitsHandler CheckoutOptionTrait extension #{aa}: unhandled element #{cc.name}=#{cc.text}"
                 end
                 puts " " * currentDepth + " #{cc.name}(#{cc.text})" 
+              end
+            end
+          else
+            puts "[-] ERROR BBSCMSourceTraitsHandler CheckoutOptionTrait: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+      when 'jenkins.plugins.git.traits.LocalBranchTrait' 
+        puts " " * currentDepth + "localBranchTrait {"
+        currentDepth += indent
+        puts " " * currentDepth + "extension {"
+        currentDepth += indent
+        i.elements.each do |ii|
+          case ii.name
+          when 'extension'
+            ii.attributes.each do |aa, vv|
+              if !(aa == 'class' && vv.text == 'hudson.plugins.git.extensions.impl.LocalBranch')
+                puts "[-] ERROR BBSCMSourceTraitsHandler LocalBranchTrait extension: unhandled attribute #{aa}=#{vv}"
+              end
+              ii.elements.each do |cc|
+                if !(cc.name == 'localBranch')
+                  puts "[-] ERROR BBSCMSourceTraitsHandler LocalBranchTrait extension #{aa}: unhandled element #{cc.name}=#{cc.text}"
+                end
+                puts " " * currentDepth + " #{cc.name}('#{cc.text}')" 
               end
             end
           else
@@ -1701,6 +1768,8 @@ class BBSCMTagBuildStrategyHandler < Struct.new(:node)
 end
 
 class BBSCMNamedBranchBuildStrategyHandler < Struct.new(:node)
+  include Helper
+
   def process(job_name, depth, indent)
     puts " " * depth + "buildNamedBranches {"
     currentDepth = depth + indent
@@ -1716,7 +1785,7 @@ class BBSCMNamedBranchBuildStrategyHandler < Struct.new(:node)
             puts " " * currentDepth + "wildcards {"
             currentDepth += indent
             ii.elements.each do |filter|
-              puts " " * currentDepth + " #{filter.name}(#{['false', 'true'].include?(filter.text) ? filter.text : '\'' + filter.text + '\''})"
+              puts " " * currentDepth + " #{filter.name}(#{formatText filter.text})"
             end
             puts " " * currentDepth + "}"
             currentDepth -= indent
@@ -1966,12 +2035,15 @@ class WorkflowMultiBranchProjectHandler < Struct.new(:node)
         puts " " * currentDepth + "#{i.name}(#{i.text})"
       when 'orphanedItemStrategy'
         puts " " * currentDepth + "#{i.name} {\n"
+        closeScope = false;
         i.elements.each do |ii|
           case ii.name
           when 'pruneDeadBranches'
-            puts " " * (currentDepth + indent) + "discardOldItems {\n" + " " * (currentDepth + indent) + "}"
+            currentDepth += indent
+            puts " " * currentDepth + "discardOldItems {" 
+            closeScope = true
           when 'daysToKeep', 'numToKeep', 'abortBuilds'
-            if ii.text == 'false'
+            if ['false', 'true'].include?(ii.text)
               puts " " * (currentDepth + indent) + "#{ii.name}(#{ii.text})"
             elsif ii.text != '-1'
               puts " " * (currentDepth + indent) + "#{ii.name}(#{ii.text})"
@@ -1980,6 +2052,10 @@ class WorkflowMultiBranchProjectHandler < Struct.new(:node)
             puts "[-] ERROR WorkflowMultiBranchProjectHandler orphanedItemStrategy: unhandled element #{ii.name}"
             pp ii
           end
+        end
+        if closeScope
+          puts " " * currentDepth + "}\n"
+          currentDepth -= indent
         end
         puts " " * currentDepth + "}\n"
       when 'scm'
@@ -2019,6 +2095,7 @@ class WorkflowMultiBranchProjectHandler < Struct.new(:node)
     puts "}"
   end
 end
+
 class FreestyleDefinitionNodeHandler < Struct.new(:node)
   include Helper
 
@@ -2066,6 +2143,7 @@ class FreestyleDefinitionNodeHandler < Struct.new(:node)
       when 'logRotator'
         LogRotatorNodeHandler.new(i).process(job_name, currentDepth, indent)
       else
+        puts "[-] ERROR FreestyleDefinitionNodeHandler unhandled element #{i}"
         pp i
       end
     end
