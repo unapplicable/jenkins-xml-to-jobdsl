@@ -1849,8 +1849,7 @@ class WorkflowMultiBranchProjectHandler < Struct.new(:node)
             if ii.text == 'false'
               puts " " * (currentDepth + indent) + "#{ii.name}(#{ii.text})"
             elsif ii.text != '-1'
-              puts "[-] ERROR WorkflowMultiBranchProjectHandler orphanedItemStrategy #{ii.name}: unhandled value #{ii.text}"
-              pp ii
+              puts " " * (currentDepth + indent) + "#{ii.name}(#{ii.text})"
             end
           else
             puts "[-] ERROR WorkflowMultiBranchProjectHandler orphanedItemStrategy: unhandled element #{ii.name}"
