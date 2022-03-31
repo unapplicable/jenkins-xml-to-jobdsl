@@ -11,7 +11,7 @@ module Helper
   end
 
   def removeCarriage str
-    str.tr "", "\n"
+    str.tr "\r", "\n"
   end
 
   def formatText str
@@ -1519,6 +1519,311 @@ class MavenDefinitionNodeHandler < Struct.new(:node)
   end
 end
 
+class BBSCMSourceTraitsHandler < Struct.new(:node)
+  def process(job_name, depth, indent)
+    puts " " * depth + " traits {"
+    currentDepth = depth + indent
+    node.elements.each do |i|
+      case i.name
+      when 'com.cloudbees.jenkins.plugins.bitbucket.BranchDiscoveryTrait'
+        puts " " * currentDepth + "bitbucketBranchDiscovery {"
+        currentDepth += indent
+        i.elements.each do |ii|
+          case ii.name
+          when 'strategyId'
+            puts " " * currentDepth + " #{ii.name}(#{ii.text})" # @todo(ln) symbolicIds option EXCLUDE_BRANCHES_FILED_AS_PRS = 1
+          else
+            puts "BBSCMSourceTraitsHandler BranchDiscoveryTrait: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+      when 'com.cloudbees.jenkins.plugins.bitbucket.OriginPullRequestDiscoveryTrait'
+        puts " " * currentDepth + "bitbucketPullRequestDiscovery {"
+        currentDepth += indent
+        i.elements.each do |ii|
+          case ii.name
+          when 'strategyId'
+            puts " " * currentDepth + " #{ii.name}(#{ii.text})" # @todo(ln) symbolicIds option MERGE_WITH_TARGET_BRANCH_REVISION = 1
+          else
+            puts "BBSCMSourceTraitsHandler OriginPullRequestDiscoveryTrait: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+      when 'com.cloudbees.jenkins.plugins.bitbucket.TagDiscoveryTrait'
+        puts " " * currentDepth + "bitbucketTagDiscovery()"
+        i.elements.each do |ii|
+            puts "BBSCMSourceTraitsHandler TagDiscoveryTrait: unhandled element #{ii.name}"
+            pp ii
+        end
+      else
+        puts "BBSCMSourceTraitsHandler: unhandled element #{i.name}"
+        pp i
+      end
+    end
+    puts " " * depth + "}"
+  end
+end
+
+class BitbucketSCMSourceHandler < Struct.new(:node)
+  def process(job_name, depth, indent)
+    puts " " * depth + "bitbucket {"
+    currentDepth = depth + indent
+    node.elements.each do |i|
+      case i.name
+      when 'id', 'serverUrl', 'credentialsId', 'repoOwner', 'repository'
+        puts " " * currentDepth + " #{i.name}('#{i.text}')"
+      when 'traits'
+        BBSCMSourceTraitsHandler.new(i).process(job_name, currentDepth, indent)
+      else
+        puts "BitbucketSCMSourceHandler: unhandled element #{i.name}"
+        pp i
+      end
+    end
+    puts " " * depth + "}"
+  end
+end
+
+class BBSCMAnyBranchBuildStrategyHandler < Struct.new(:node)
+  def process(job_name, depth, indent)
+    puts " " * depth + "buildAnyBranches {"
+    currentDepth = depth + indent
+    node.elements.each do |i|
+      case i.name
+      #when 'id', 'serverUrl', 'credentialsId', 'repoOwner', 'repository'
+      #  puts " " * currentDepth + " #{i.name}('#{i.text}')"
+      when 'strategies'
+        puts " " * currentDepth + "strategies {"
+        currentDepth += indent
+        i.elements.each do |ii|
+          case ii.name
+          when 'jenkins.branch.buildstrategies.basic.ChangeRequestBuildStrategyImpl'
+            puts " " * currentDepth + "buildChangeRequests {"
+            currentDepth += indent
+            ii.elements.each do |iii|
+              case iii.name
+              when 'ignoreTargetOnlyChanges', 'ignoreUntrustedChanges'
+                puts " " * currentDepth + " #{iii.name}('#{iii.text}')"
+              else
+                puts "BBSCMAnyBranchBuildStrategyHandler strategies ChangeRequestBuildStrategy: unhandled element #{iii.name}"
+                pp iii
+              end
+            end
+            currentDepth -= indent
+            puts " " * currentDepth + "}"
+          when 'jenkins.branch.buildstrategies.basic.BranchBuildStrategyImpl'
+            puts " " * currentDepth + "buildRegularBranches()"
+            ii.elements.each do |iii|
+                puts "BBSCMAnyBranchBuildStrategyHandler strategies BranchBuildStrategy: unhandled element #{iii.name}"
+                pp iii
+            end
+          when 'jenkins.branch.buildstrategies.basic.TagBuildStrategyImpl'
+            puts " " * currentDepth + "buildTags {"
+            currentDepth += indent
+            ii.elements.each do |iii|
+              case iii.name
+              when 'atLeastMillis', 'atMostMillis'
+                puts " " * currentDepth + " #{iii.name}('#{iii.text}')"
+              else
+                puts "BBSCMAnyBranchBuildStrategyHandler strategies TagBuildStrategy: unhandled element #{iii.name}"
+                pp iii
+              end
+            end
+            currentDepth -= indent
+            puts " " * currentDepth + "}"
+          else
+            puts "BBSCMAnyBranchBuildStrategyHandler strategies: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+      else
+        puts "BBSCMAnyBranchBuildStrategyHandler: unhandled alram #{i.name}"
+        pp i
+      end
+    end
+    puts " " * depth + "}"
+  end
+end
+
+class BBSCMBuildStrategiesHandler < Struct.new(:node)
+  def process(job_name, depth, indent)
+    puts " " * depth + "buildStrategies {"
+    currentDepth = depth + indent
+    node.elements.each do |i|
+      case i.name
+      when 'jenkins.branch.buildstrategies.basic.AnyBranchBuildStrategyImpl'
+        BBSCMAnyBranchBuildStrategyHandler.new(i).process(job_name, currentDepth, indent)
+      else
+        puts "BBSCMBuildStrategiesHandler: unhandled strategy #{i.name}"
+        pp i
+      end
+    end
+    puts " " * depth + "}"
+  end
+end
+
+class BranchSourceNodeHandler < Struct.new(:node)
+  def process(job_name, depth, indent)
+    puts " " * depth + "branchSource {"
+    currentDepth = depth + indent
+    node.elements.each do |i|
+      case i.name
+      when 'source'
+        puts " " * currentDepth + "source {"
+        currentDepth += indent
+        clazz = i.attributes()['class'].value
+        case clazz
+        when 'com.cloudbees.jenkins.plugins.bitbucket.BitbucketSCMSource'
+          BitbucketSCMSourceHandler.new(i).process(job_name, currentDepth, indent)
+        else
+          puts "BranchSourceNodeHandler: unhandled branchSource class #{clazz}"
+          pp i
+        end
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+      when 'buildStrategies'
+        BBSCMBuildStrategiesHandler.new(i).process(job_name, currentDepth, indent)
+      else
+        puts "BranchSourceNodeHandler: unhandled element #{i.name}"
+        pp i
+      end
+    end
+    puts " " * depth + "}"
+  end
+end
+
+class SourcesNodeHandler < Struct.new(:node)
+  def process(job_name, depth, indent)
+    puts " " * depth + "branchSources {"
+    currentDepth = depth + indent
+    node.elements.each do |i|
+      case i.name
+      when 'data'
+        i.elements.each do |ii|
+          case ii.name
+          when 'jenkins.branch.BranchSource'
+            BranchSourceNodeHandler.new(ii).process(job_name, currentDepth, indent)
+          else
+            puts "SourcesNodeHandler data: unhandled element #{ii.name}"
+          end
+        end
+      when 'owner'
+        # @todo(ln) detect unhandled content
+      else
+        puts "SourcesNodeHandler: unhandled element #{i.name}"
+        pp i
+      end
+    end
+    puts " " * depth + "}"
+  end
+end
+
+class FactoryNodeHandler < Struct.new(:node)
+  def process(job_name, depth, indent)
+    currentDepth = depth + indent 
+    puts " " * depth + "factory {\n" + " " * currentDepth + "workflowBranchProjectFactory {"
+    currentDepth += indent 
+    node.elements.each do |i|
+      case i.name
+      when 'scriptPath'
+        puts " " * currentDepth + "scriptPath('#{i.text}')"
+      else
+        puts "FactoryNodeHandler: unhandled element #{i.name}"
+        pp i
+      end
+    end
+    currentDepth -= indent
+    puts " " * currentDepth + "}"
+    puts " " * depth + "}"
+  end
+end
+
+class WorkflowMultiBranchProjectHandler < Struct.new(:node)
+  include Helper
+
+  def process(folder_name, job_name, depth, indent)
+    puts "multibranchPipelineJob('#{folder_name}/#{job_name}') {"
+    currentDepth = depth + indent
+    node.elements.each do |i|
+      case i.name
+      when 'folderViews'
+      when 'healthMetrics'
+      when 'icon'
+      when 'properties'
+
+      when 'displayName'
+        if !(i.text.nil? || i.text.empty?)
+          puts " " * currentDepth + "#{i.name}('#{removeCarriage i.text}')"
+        end
+      when 'factory'
+        FactoryNodeHandler.new(i).process(job_name, currentDepth, indent)
+      when 'sources'
+        SourcesNodeHandler.new(i).process(job_name, currentDepth, indent)
+      when 'description'
+        if !(i.text.nil? || i.text.empty?)
+          puts " " * currentDepth + "#{i.name}('''\\\n#{removeCarriage i.text}\n''')"
+        end
+      when 'keepDependencies', 'quietPeriod'
+        puts " " * currentDepth + "#{i.name}(#{i.text})"
+      when 'orphanedItemStrategy'
+        puts " " * currentDepth + "#{i.name} {\n"
+        i.elements.each do |ii|
+          case ii.name
+          when 'pruneDeadBranches'
+            puts " " * (currentDepth + indent) + "discardOldItems {\n" + " " * (currentDepth + indent) + "}"
+          when 'daysToKeep', 'numToKeep'
+            if ii.text != '-1'
+              puts "WorkflowMultiBranchProjectHandler orphanedItemStrategy #{ii.name}: unhandled value #{ii.text}"
+              pp ii
+            end
+          else
+            puts "WorkflowMultiBranchProjectHandler orphanedItemStrategy: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
+        puts " " * currentDepth + "}\n"
+      when 'scm'
+        ScmDefinitionNodeHandler.new(i).process(job_name, currentDepth, indent)
+      when 'canRoam', 'assignedNode'
+        if i.name == 'canRoam' and i.text == 'true'
+          puts " " * currentDepth + "label()"
+        elsif i.name == 'assignedNode'
+          puts " " * currentDepth + "label('#{i.text}')"
+        end
+#      when 'keepDependencies', 'concurrentBuild', 'disabled', 'fingerprintingDisabled',
+#     'runHeadless', 'resolveDependencies', 'siteArchivingDisabled', 'archivingDisabled', 'incrementalBuild'
+      when 'disabled', 'concurrentBuild'
+        puts " " * currentDepth + "#{i.name}(#{i.text})"
+      when 'blockBuildWhenDownstreamBuilding'
+        if i.text == 'true'
+          puts " " * currentDepth + "blockOnDownstreamProjects()"
+        end
+      when 'blockBuildWhenUpstreamBuilding'
+        if i.text == 'true'
+          puts " " * currentDepth + "blockOnUpstreamProjects()"
+        end
+      when 'triggers'
+        # TriggerDefinitionNodeHandler.new(i).process(job_name, currentDepth, indent)
+      when 'publishers'
+        PublishersNodeHandler.new(i).process(job_name, currentDepth, indent)
+      when 'builders'
+        BuildersNodeHandler.new(i).process(job_name, currentDepth, indent)
+      when 'logRotator'
+        LogRotatorNodeHandler.new(i).process(job_name, currentDepth, indent)
+      else
+        puts "WorkflowMultiBranchProjectHandler: unhandled element #{i.text}"
+        pp i
+      end
+    end
+    ConfigureBlock.print
+    puts "}"
+  end
+end
 class FreestyleDefinitionNodeHandler < Struct.new(:node)
   include Helper
 
@@ -1696,13 +2001,15 @@ OptionParser.new do |opts|
 end.parse!
 
 f = ARGV.shift
+ff = f
 if !File.file?(f)
   exit 1
 end
 
 f = File.absolute_path(f)
 d = File.dirname(f)
-job = d.split("/")[-1]
+job = File.basename(f, '.xml')
+folder = f.split('/')[-2]
 Nokogiri::XML::Reader(File.open(f)).each do |node|
   if node.name == 'flow-definition' && node.node_type == Nokogiri::XML::Reader::TYPE_ELEMENT
     FlowDefinitionNodeHandler.new(
@@ -1716,8 +2023,12 @@ Nokogiri::XML::Reader(File.open(f)).each do |node|
     FreestyleDefinitionNodeHandler.new(
       Nokogiri::XML(node.outer_xml).at('./project')
     ).process(job, depth, indent)
-  else
-    #pp node
+  elsif node.name == 'org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject' && node.node_type == Nokogiri::XML::Reader::TYPE_ELEMENT && node.depth == 0
+    WorkflowMultiBranchProjectHandler.new(
+      Nokogiri::XML(node.outer_xml).at('./org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject')
+    ).process(folder, job, depth, indent)
+  elsif node.node_type == Nokogiri::XML::Reader::TYPE_ELEMENT && node.depth == 0
+    print 'unhandled: ' + node.name
   end
 end
 
