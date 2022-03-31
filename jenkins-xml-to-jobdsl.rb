@@ -1567,6 +1567,62 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
         end
         currentDepth -= indent
         puts " " * currentDepth + "}"
+      when 'jenkins.plugins.git.traits.CheckoutOptionTrait' 
+        puts " " * currentDepth + "checkoutOptionTrait {"
+        currentDepth += indent
+        puts " " * currentDepth + "extension {"
+        currentDepth += indent
+        i.elements.each do |ii|
+          case ii.name
+          when 'extension'
+            ii.attributes.each do |aa, vv|
+              if !(aa == 'class' && vv.text == 'hudson.plugins.git.extensions.impl.CheckoutOption')
+                puts "[-] ERROR BBSCMSourceTraitsHandler CheckoutOptionTrait extension: unhandled attribute #{aa}=#{vv}"
+              end
+              ii.elements.each do |cc|
+                if !(cc.name == 'timeout')
+                  puts "[-] ERROR BBSCMSourceTraitsHandler CheckoutOptionTrait extension #{aa}: unhandled element #{cc.name}=#{cc.text}"
+                end
+                puts " " * currentDepth + " #{cc.name}(#{cc.text})" 
+              end
+            end
+          else
+            puts "[-] ERROR BBSCMSourceTraitsHandler CheckoutOptionTrait: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+      when 'jenkins.plugins.git.traits.CloneOptionTrait' 
+        puts " " * currentDepth + "cloneOptionTrait {"
+        currentDepth += indent
+        puts " " * currentDepth + "extension {"
+        currentDepth += indent
+        i.elements.each do |ii|
+          case ii.name
+          when 'extension'
+            ii.attributes.each do |aa, vv|
+              if !(aa == 'class' && vv.text == 'hudson.plugins.git.extensions.impl.CloneOption')
+                puts "[-] ERROR BBSCMSourceTraitsHandler CloneOptionTrait extension: unhandled attribute #{aa}=#{vv}"
+              end
+              ii.elements.each do |cc|
+                if !['shallow', 'noTags', 'reference', 'timeout', 'depth', 'honorRefspec'].include? cc.name
+                  puts "[-] ERROR BBSCMSourceTraitsHandler CloneOptionTrait extension #{aa}: unhandled element #{cc.name}=#{cc.text}"
+                end
+                puts " " * currentDepth + " #{cc.name}(#{cc.text})" 
+              end
+            end
+          else
+            puts "[-] ERROR BBSCMSourceTraitsHandler CloneOptionTrait: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
       when 'com.cloudbees.jenkins.plugins.bitbucket.ForkPullRequestDiscoveryTrait' 
         # @todo(ln) pass to root level with blocks or smth
 #        puts " " * currentDepth + "bitbucketForkDiscovery {"
@@ -1616,14 +1672,77 @@ class BitbucketSCMSourceHandler < Struct.new(:node)
   end
 end
 
+class BBSCMChangeRequestBuildStrategyHandler < Struct.new(:node)
+  def process(job_name, depth, indent)
+    puts " " * depth + "buildChangeRequests {"
+    currentDepth = depth + indent
+    node.elements.each do |i|
+      if !['ignoreTargetOnlyChanges', 'ignoreUntrustedChanges'].include? i.name
+        puts "[-] ERROR BBBSCMChangeRequestBuildStrategyHandler: unhandled element #{i.name}=#{i.text}"
+      end
+      puts " " * currentDepth + " #{i.name}(#{i.text})"
+    end
+    puts " " * depth + "}"
+  end
+end
+
+class BBSCMTagBuildStrategyHandler < Struct.new(:node)
+  def process(job_name, depth, indent)
+    puts " " * depth + "buildTags {"
+    currentDepth = depth + indent
+    node.elements.each do |i|
+      if !['atLeastMillis', 'atMostMillis'].include? i.name
+        puts "[-] ERROR BBBSCMCTagBuildBuildStrategyHandler: unhandled element #{i.name}=#{i.text}"
+      end
+      puts " " * currentDepth + " #{i.name}(#{i.text})"
+    end
+    puts " " * depth + "}"
+  end
+end
+
+class BBSCMNamedBranchBuildStrategyHandler < Struct.new(:node)
+  def process(job_name, depth, indent)
+    puts " " * depth + "buildNamedBranches {"
+    currentDepth = depth + indent
+    node.elements.each do |i|
+      case i.name
+      when 'filters'
+        puts " " * currentDepth + "filters {"
+        currentDepth += indent
+
+        i.elements.each do |ii|
+          case ii.name
+          when 'jenkins.branch.buildstrategies.basic.NamedBranchBuildStrategyImpl_-WildcardsNameFilter'
+            puts " " * currentDepth + "wildcards {"
+            currentDepth += indent
+            ii.elements.each do |filter|
+              puts " " * currentDepth + " #{filter.name}(#{['false', 'true'].include?(filter.text) ? filter.text : '\'' + filter.text + '\''})"
+            end
+            puts " " * currentDepth + "}"
+            currentDepth -= indent
+          else
+            puts "[-] ERROR BBBSCMNamedBranchBuildStrategyHandler filters: unhandled element #{ii.name}=#{ii.text}"
+            pp ii
+          end
+        end
+        puts " " * currentDepth + "}"
+        currentDepth -= indent
+      else
+        puts "[-] ERROR BBBSCMNamedBranchBuildStrategyHandler: unhandled element #{i.name}=#{i.text}"
+        pp i
+      end
+    end
+
+    puts " " * depth + "}"
+  end
+end
+
 class BBSCMAnyBranchBuildStrategyHandler < Struct.new(:node)
   def process(job_name, depth, indent)
     puts " " * depth + "buildAnyBranches {"
     currentDepth = depth + indent
     node.elements.each do |i|
       case i.name
-      #when 'id', 'serverUrl', 'credentialsId', 'repoOwner', 'repository'
-      #  puts " " * currentDepth + " #{i.name}('#{i.text}')"
       when 'strategies'
         puts " " * currentDepth + "strategies {"
         currentDepth += indent
@@ -1687,6 +1806,12 @@ class BBSCMBuildStrategiesHandler < Struct.new(:node)
       case i.name
       when 'jenkins.branch.buildstrategies.basic.AnyBranchBuildStrategyImpl'
         BBSCMAnyBranchBuildStrategyHandler.new(i).process(job_name, currentDepth, indent)
+      when 'jenkins.branch.buildstrategies.basic.ChangeRequestBuildStrategyImpl'
+        BBSCMChangeRequestBuildStrategyHandler.new(i).process(job_name, currentDepth, indent)
+      when 'jenkins.branch.buildstrategies.basic.NamedBranchBuildStrategyImpl'
+        BBSCMNamedBranchBuildStrategyHandler.new(i).process(job_name, currentDepth, indent)
+      when 'jenkins.branch.buildstrategies.basic.TagBuildStrategyImpl'
+        BBSCMTagBuildStrategyHandler.new(i).process(job_name, currentDepth, indent)
       else
         puts "[-] ERROR BBSCMBuildStrategiesHandler: unhandled strategy #{i.name}"
         pp i
