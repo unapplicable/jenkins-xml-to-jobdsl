@@ -1533,7 +1533,7 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
           when 'strategyId'
             puts " " * currentDepth + " #{ii.name}(#{ii.text})" # @todo(ln) symbolicIds option EXCLUDE_BRANCHES_FILED_AS_PRS = 1
           else
-            puts "BBSCMSourceTraitsHandler BranchDiscoveryTrait: unhandled element #{ii.name}"
+            puts "[-] ERROR BBSCMSourceTraitsHandler BranchDiscoveryTrait: unhandled element #{ii.name}"
             pp ii
           end
         end
@@ -1547,20 +1547,49 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
           when 'strategyId'
             puts " " * currentDepth + " #{ii.name}(#{ii.text})" # @todo(ln) symbolicIds option MERGE_WITH_TARGET_BRANCH_REVISION = 1
           else
-            puts "BBSCMSourceTraitsHandler OriginPullRequestDiscoveryTrait: unhandled element #{ii.name}"
+            puts "[-] ERROR BBSCMSourceTraitsHandler OriginPullRequestDiscoveryTrait: unhandled element #{ii.name}"
             pp ii
           end
         end
         currentDepth -= indent
         puts " " * currentDepth + "}"
+      when 'com.cloudbees.jenkins.plugins.bitbucket.SSHCheckoutTrait' 
+        puts " " * currentDepth + "bitbucketSshCheckout {"
+        currentDepth += indent
+        i.elements.each do |ii|
+          case ii.name
+          when 'credentialsId'
+            puts " " * currentDepth + " #{ii.name}('#{ii.text}')" 
+          else
+            puts "[-] ERROR BBSCMSourceTraitsHandler SSHCheckoutTrait: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+      when 'com.cloudbees.jenkins.plugins.bitbucket.ForkPullRequestDiscoveryTrait' 
+        # @todo(ln) pass to root level with blocks or smth
+#        puts " " * currentDepth + "bitbucketForkDiscovery {"
+#        currentDepth += indent
+#        i.elements.each do |ii|
+#          case ii.name
+#          when 'xxxxxx'
+#            puts " " * currentDepth + " #{ii.name}('#{ii.text}')" 
+#          else
+#            puts "[-] ERROR BBSCMSourceTraitsHandler ForkPullRequestDiscoveryTrait: unhandled element #{ii.name}"
+#            pp ii
+#          end
+#        end
+#        currentDepth -= indent
+#        puts " " * currentDepth + "}"
       when 'com.cloudbees.jenkins.plugins.bitbucket.TagDiscoveryTrait'
         puts " " * currentDepth + "bitbucketTagDiscovery()"
         i.elements.each do |ii|
-            puts "BBSCMSourceTraitsHandler TagDiscoveryTrait: unhandled element #{ii.name}"
+            puts "[-] ERROR BBSCMSourceTraitsHandler TagDiscoveryTrait: unhandled element #{ii.name}"
             pp ii
         end
       else
-        puts "BBSCMSourceTraitsHandler: unhandled element #{i.name}"
+        puts "[-] ERROR BBSCMSourceTraitsHandler: unhandled element #{i.name}"
         pp i
       end
     end
@@ -1579,7 +1608,7 @@ class BitbucketSCMSourceHandler < Struct.new(:node)
       when 'traits'
         BBSCMSourceTraitsHandler.new(i).process(job_name, currentDepth, indent)
       else
-        puts "BitbucketSCMSourceHandler: unhandled element #{i.name}"
+        puts "[-] ERROR BitbucketSCMSourceHandler: unhandled element #{i.name}"
         pp i
       end
     end
@@ -1608,7 +1637,7 @@ class BBSCMAnyBranchBuildStrategyHandler < Struct.new(:node)
               when 'ignoreTargetOnlyChanges', 'ignoreUntrustedChanges'
                 puts " " * currentDepth + " #{iii.name}('#{iii.text}')"
               else
-                puts "BBSCMAnyBranchBuildStrategyHandler strategies ChangeRequestBuildStrategy: unhandled element #{iii.name}"
+                puts "[-] ERROR BBSCMAnyBranchBuildStrategyHandler strategies ChangeRequestBuildStrategy: unhandled element #{iii.name}"
                 pp iii
               end
             end
@@ -1617,7 +1646,7 @@ class BBSCMAnyBranchBuildStrategyHandler < Struct.new(:node)
           when 'jenkins.branch.buildstrategies.basic.BranchBuildStrategyImpl'
             puts " " * currentDepth + "buildRegularBranches()"
             ii.elements.each do |iii|
-                puts "BBSCMAnyBranchBuildStrategyHandler strategies BranchBuildStrategy: unhandled element #{iii.name}"
+                puts "[-] ERROR BBSCMAnyBranchBuildStrategyHandler strategies BranchBuildStrategy: unhandled element #{iii.name}"
                 pp iii
             end
           when 'jenkins.branch.buildstrategies.basic.TagBuildStrategyImpl'
@@ -1628,21 +1657,21 @@ class BBSCMAnyBranchBuildStrategyHandler < Struct.new(:node)
               when 'atLeastMillis', 'atMostMillis'
                 puts " " * currentDepth + " #{iii.name}('#{iii.text}')"
               else
-                puts "BBSCMAnyBranchBuildStrategyHandler strategies TagBuildStrategy: unhandled element #{iii.name}"
+                puts "[-] ERROR BBSCMAnyBranchBuildStrategyHandler strategies TagBuildStrategy: unhandled element #{iii.name}"
                 pp iii
               end
             end
             currentDepth -= indent
             puts " " * currentDepth + "}"
           else
-            puts "BBSCMAnyBranchBuildStrategyHandler strategies: unhandled element #{ii.name}"
+            puts "[-] ERROR BBSCMAnyBranchBuildStrategyHandler strategies: unhandled element #{ii.name}"
             pp ii
           end
         end
         currentDepth -= indent
         puts " " * currentDepth + "}"
       else
-        puts "BBSCMAnyBranchBuildStrategyHandler: unhandled alram #{i.name}"
+        puts "[-] ERROR BBSCMAnyBranchBuildStrategyHandler: unhandled alram #{i.name}"
         pp i
       end
     end
@@ -1659,7 +1688,7 @@ class BBSCMBuildStrategiesHandler < Struct.new(:node)
       when 'jenkins.branch.buildstrategies.basic.AnyBranchBuildStrategyImpl'
         BBSCMAnyBranchBuildStrategyHandler.new(i).process(job_name, currentDepth, indent)
       else
-        puts "BBSCMBuildStrategiesHandler: unhandled strategy #{i.name}"
+        puts "[-] ERROR BBSCMBuildStrategiesHandler: unhandled strategy #{i.name}"
         pp i
       end
     end
@@ -1681,15 +1710,42 @@ class BranchSourceNodeHandler < Struct.new(:node)
         when 'com.cloudbees.jenkins.plugins.bitbucket.BitbucketSCMSource'
           BitbucketSCMSourceHandler.new(i).process(job_name, currentDepth, indent)
         else
-          puts "BranchSourceNodeHandler: unhandled branchSource class #{clazz}"
+          puts "[-] ERROR BranchSourceNodeHandler: unhandled branchSource class #{clazz}"
           pp i
         end
         currentDepth -= indent
         puts " " * currentDepth + "}"
       when 'buildStrategies'
         BBSCMBuildStrategiesHandler.new(i).process(job_name, currentDepth, indent)
+      when 'strategy'
+        i.attributes.each do |aa, vv|
+          case aa
+          when 'class'
+            if vv.value != 'jenkins.branch.DefaultBranchPropertyStrategy'
+              puts "[-] ERROR BranchSourceNodeHandler strategy class: unhandled value #{vv}"
+              pp vv
+            end
+          else
+            puts "[-] ERROR BranchSourceNodeHandler strategy unhandled attr: #{aa}"
+            pp aa
+          end
+        end
+        i.elements.each do |ii|
+          case ii.name
+          when 'properties'
+            ii.attributes.each do |aa, vv|
+              if !(aa == 'class' && vv.value == 'empty-list')
+                puts "[-] ERROR BranchSourceNodeHandler strategy properties: unhandled attribute #{aa}=#{vv}"
+                pp ii
+              end
+            end
+          else
+            puts "[-] ERROR BranchSourceNodeHandler strategy: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
       else
-        puts "BranchSourceNodeHandler: unhandled element #{i.name}"
+        puts "[-] ERROR BranchSourceNodeHandler: unhandled element #{i.name}"
         pp i
       end
     end
@@ -1709,13 +1765,13 @@ class SourcesNodeHandler < Struct.new(:node)
           when 'jenkins.branch.BranchSource'
             BranchSourceNodeHandler.new(ii).process(job_name, currentDepth, indent)
           else
-            puts "SourcesNodeHandler data: unhandled element #{ii.name}"
+            puts "[-] ERROR SourcesNodeHandler data: unhandled element #{ii.name}"
           end
         end
       when 'owner'
         # @todo(ln) detect unhandled content
       else
-        puts "SourcesNodeHandler: unhandled element #{i.name}"
+        puts "[-] ERROR SourcesNodeHandler: unhandled element #{i.name}"
         pp i
       end
     end
@@ -1732,8 +1788,16 @@ class FactoryNodeHandler < Struct.new(:node)
       case i.name
       when 'scriptPath'
         puts " " * currentDepth + "scriptPath('#{i.text}')"
+      when 'owner'
+        i.attributes.each do |aa, vv|
+          if !(aa == 'class' && vv.value == 'org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject') && 
+              !(aa == 'reference' && vv.value == '../..')
+            puts "[-] ERROR FactoryNodeHandler owner: unhandled attribute #{aa}=#{vv}"
+            pp vv
+          end
+        end
       else
-        puts "FactoryNodeHandler: unhandled element #{i.name}"
+        puts "[-] ERROR FactoryNodeHandler: unhandled element #{i.name}"
         pp i
       end
     end
@@ -1756,6 +1820,11 @@ class WorkflowMultiBranchProjectHandler < Struct.new(:node)
       when 'icon'
       when 'properties'
 
+      when 'actions'
+        if !i.text.empty?
+            puts "[-] ERROR WorkflowMultiBranchProjectHandler actions: unhandled content"
+            pp i
+        end
       when 'displayName'
         if !(i.text.nil? || i.text.empty?)
           puts " " * currentDepth + "#{i.name}('#{removeCarriage i.text}')"
@@ -1776,13 +1845,15 @@ class WorkflowMultiBranchProjectHandler < Struct.new(:node)
           case ii.name
           when 'pruneDeadBranches'
             puts " " * (currentDepth + indent) + "discardOldItems {\n" + " " * (currentDepth + indent) + "}"
-          when 'daysToKeep', 'numToKeep'
-            if ii.text != '-1'
-              puts "WorkflowMultiBranchProjectHandler orphanedItemStrategy #{ii.name}: unhandled value #{ii.text}"
+          when 'daysToKeep', 'numToKeep', 'abortBuilds'
+            if ii.text == 'false'
+              puts " " * (currentDepth + indent) + "#{ii.name}(#{ii.text})"
+            elsif ii.text != '-1'
+              puts "[-] ERROR WorkflowMultiBranchProjectHandler orphanedItemStrategy #{ii.name}: unhandled value #{ii.text}"
               pp ii
             end
           else
-            puts "WorkflowMultiBranchProjectHandler orphanedItemStrategy: unhandled element #{ii.name}"
+            puts "[-] ERROR WorkflowMultiBranchProjectHandler orphanedItemStrategy: unhandled element #{ii.name}"
             pp ii
           end
         end
@@ -1816,7 +1887,7 @@ class WorkflowMultiBranchProjectHandler < Struct.new(:node)
       when 'logRotator'
         LogRotatorNodeHandler.new(i).process(job_name, currentDepth, indent)
       else
-        puts "WorkflowMultiBranchProjectHandler: unhandled element #{i.text}"
+        puts "[-] ERROR WorkflowMultiBranchProjectHandler: unhandled element #{i.text}"
         pp i
       end
     end
@@ -2028,7 +2099,7 @@ Nokogiri::XML::Reader(File.open(f)).each do |node|
       Nokogiri::XML(node.outer_xml).at('./org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject')
     ).process(folder, job, depth, indent)
   elsif node.node_type == Nokogiri::XML::Reader::TYPE_ELEMENT && node.depth == 0
-    print 'unhandled: ' + node.name
+    print '[-] ERROR unhandled: ' + node.name
   end
 end
 
