@@ -1546,6 +1546,10 @@ class MavenDefinitionNodeHandler < Struct.new(:node)
   end
 end
 
+def quoteEmptyString(s)
+  s == '' ? "''" : s
+end
+
 class BBSCMSourceTraitsHandler < Struct.new(:node)
   def process(job_name, depth, indent)
     puts " " * depth + " traits {"
@@ -1677,8 +1681,9 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
               ii.elements.each do |cc|
                 if !['shallow', 'noTags', 'reference', 'timeout', 'depth', 'honorRefspec'].include? cc.name
                   puts "[-] ERROR BBSCMSourceTraitsHandler CloneOptionTrait extension #{aa}: unhandled element #{cc.name}=#{cc.text}"
+                else
+                  puts " " * currentDepth + " #{cc.name}(#{quoteEmptyString(cc.text)})"
                 end
-                puts " " * currentDepth + " #{cc.name}(#{cc.text})" 
               end
             end
           else
@@ -2034,28 +2039,38 @@ class WorkflowMultiBranchProjectHandler < Struct.new(:node)
       when 'keepDependencies', 'quietPeriod'
         puts " " * currentDepth + "#{i.name}(#{i.text})"
       when 'orphanedItemStrategy'
+        pruneDeadBranches = daysToKeep = numToKeep = abortBuilds = nil
         puts " " * currentDepth + "#{i.name} {\n"
-        closeScope = false;
+
         i.elements.each do |ii|
           case ii.name
           when 'pruneDeadBranches'
-            currentDepth += indent
-            puts " " * currentDepth + "discardOldItems {" 
-            closeScope = true
-          when 'daysToKeep', 'numToKeep', 'abortBuilds'
-            if ['false', 'true'].include?(ii.text)
-              puts " " * (currentDepth + indent) + "#{ii.name}(#{ii.text})"
-            elsif ii.text != '-1'
-              puts " " * (currentDepth + indent) + "#{ii.name}(#{ii.text})"
-            end
+            pruneDeadBranches = true
+          when 'daysToKeep'
+            daysToKeep = ii.text
+          when 'numToKeep'
+            numToKeep = ii.text
+          when 'abortBuilds'
+            abortBuilds = ii.text
           else
             puts "[-] ERROR WorkflowMultiBranchProjectHandler orphanedItemStrategy: unhandled element #{ii.name}"
             pp ii
           end
         end
-        if closeScope
+        currentDepth += indent
+        if !pruneDeadBranches.nil?
+          puts " " * currentDepth + "discardOldItems {"
+          if !daysToKeep.nil? && daysToKeep != -1
+            puts " " * (currentDepth + indent) + "daysToKeep(#{daysToKeep})"
+          end
+          if !numToKeep.nil? && numToKeep != -1
+            puts " " * (currentDepth + indent) + "numToKeep(#{numToKeep})"
+          end
           puts " " * currentDepth + "}\n"
-          currentDepth -= indent
+        end
+        currentDepth -= indent
+        if !abortBuilds.nil?
+          # not supported in JobDSL. maybe in settings? puts " " * (currentDepth + indent) + "abortBuilds(#{abortBuilds})"
         end
         puts " " * currentDepth + "}\n"
       when 'scm'
@@ -2068,7 +2083,12 @@ class WorkflowMultiBranchProjectHandler < Struct.new(:node)
         end
 #      when 'keepDependencies', 'concurrentBuild', 'disabled', 'fingerprintingDisabled',
 #     'runHeadless', 'resolveDependencies', 'siteArchivingDisabled', 'archivingDisabled', 'incrementalBuild'
-      when 'disabled', 'concurrentBuild'
+      when 'disabled'
+        #disabled disabled
+        if i.text != 'false'
+          puts "[-] ERROR WorkflowMultiBranchProjectHandler orphanedItemStrategy: unhandled element #{i}"
+        end
+      when 'concurrentBuild'
         puts " " * currentDepth + "#{i.name}(#{i.text})"
       when 'blockBuildWhenDownstreamBuilding'
         if i.text == 'true'
@@ -2143,7 +2163,7 @@ class FreestyleDefinitionNodeHandler < Struct.new(:node)
       when 'logRotator'
         LogRotatorNodeHandler.new(i).process(job_name, currentDepth, indent)
       else
-        puts "[-] ERROR FreestyleDefinitionNodeHandler unhandled element #{i}"
+        puts "[-] ERROR FreestyleDefinitionNodeHandler unhandled disabled=true #{i}"
         pp i
       end
     end
