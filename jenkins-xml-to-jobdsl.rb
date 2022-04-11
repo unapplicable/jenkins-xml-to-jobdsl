@@ -619,6 +619,29 @@ class TriggerDefinitionNodeHandler < Struct.new(:node)
   def process(job_name, depth, indent)
     puts " " * depth + "triggers {"
     currentDepth = depth + indent
+    node.elements.each do |trigger|
+      case trigger.name
+      when 'com.cloudbees.hudson.plugins.folder.computed.PeriodicFolderTrigger'
+        trigger.elements.each do |prop|
+          case prop.name
+          when 'spec'
+            #puts " " * currentDepth + "cron('#{prop.text}')"
+          when 'interval'
+            puts " " * currentDepth + "periodicFolderTrigger {\n" +
+                   " " * (currentDepth + indent) + "interval('#{prop.text.to_i / 1000}s')\n" +
+                   " " * currentDepth + "}"
+            # https://issues.jenkins.io/browse/JENKINS-55429
+            # STDERR.puts "[-] WARNING TriggerDefinitionNodeHandler: unhandled PeriodicFolderTrigger element #{prop}"
+          else
+            puts "[-] ERROR TriggerDefinitionNodeHandler: unhandled PeriodicFolderTrigger element #{prop}"
+            pp trigger
+          end
+        end
+      else
+        puts "[-] ERROR TriggerDefinitionNodeHandler: unhandled element #{trigger}"
+        pp trigger
+      end
+    end
     puts " " * depth + "}"
   end
 end
@@ -1695,21 +1718,56 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
         puts " " * currentDepth + "}"
         currentDepth -= indent
         puts " " * currentDepth + "}"
-      when 'com.cloudbees.jenkins.plugins.bitbucket.ForkPullRequestDiscoveryTrait' 
-        # @todo(ln) pass to root level with blocks or smth
-#        puts " " * currentDepth + "bitbucketForkDiscovery {"
-#        currentDepth += indent
-#        i.elements.each do |ii|
-#          case ii.name
-#          when 'xxxxxx'
-#            puts " " * currentDepth + " #{ii.name}('#{ii.text}')" 
-#          else
-#            puts "[-] ERROR BBSCMSourceTraitsHandler ForkPullRequestDiscoveryTrait: unhandled element #{ii.name}"
-#            pp ii
-#          end
-#        end
-#        currentDepth -= indent
-#        puts " " * currentDepth + "}"
+      when 'com.cloudbees.jenkins.plugins.bitbucket.ForkPullRequestDiscoveryTrait'
+        # https://issues.jenkins.io/browse/JENKINS-61119 Cannot configure Bitbucket ForkPullRequestDiscoveryTrait by using Job DSL dynamic API
+        strategyId = trustClazz = nil
+        i.elements.each do |ii|
+          case ii.name
+          when 'strategyId'
+            strategyId = ii.text
+          when 'trust'
+            trustClazz = ii.attributes['class'].value
+          else
+            puts "[-] ERROR BBSCMSourceTraitsHandler ForkPullRequestDiscoveryTrait: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
+        fprdt = [
+          "def traits = it / sources / data / 'jenkins.branch.BranchSource' / source / traits",
+          "traits << 'com.cloudbees.jenkins.plugins.bitbucket.ForkPullRequestDiscoveryTrait' { "
+        ]
+        unless strategyId.nil?
+          fprdt << " " * indent + "strategyId(#{strategyId})"
+        end
+        unless trustClazz.nil?
+          fprdt << " " * indent + "trust(class: '#{trustClazz}')"
+        end
+        fprdt << "}"
+        ConfigureBlock.new(fprdt, indent: indent).save!
+=begin
+        puts " " * currentDepth + "bitbucketForkDiscovery {"
+        currentDepth += indent
+        i.elements.each do |ii|
+          case ii.name
+          when 'strategyId'
+            puts " " * currentDepth + "strategyId(#{ii.text})"
+          when 'trust'
+            clazz = ii.attributes['class'].value
+            case clazz
+            when 'com.cloudbees.jenkins.plugins.bitbucket.ForkPullRequestDiscoveryTrait$TrustTeamForks', 'com.cloudbees.jenkins.plugins.bitbucket.ForkPullRequestDiscoveryTrait$TrustNobody', 'com.cloudbees.jenkins.plugins.bitbucket.ForkPullRequestDiscoveryTrait$TrustEveryone'
+              puts " " * currentDepth + "trust(class: '#{clazz}')"
+            else
+              puts "[-] ERROR BBSCMSourceTraitsHandler ForkPullRequestDiscoveryTrait: unhandled trust element #{clazz}"
+              pp ii
+            end
+          else
+            puts "[-] ERROR BBSCMSourceTraitsHandler ForkPullRequestDiscoveryTrait: unhandled element #{ii.name}"
+            pp ii
+          end
+        end
+        currentDepth -= indent
+        puts " " * currentDepth + "}"
+=end
       when 'com.cloudbees.jenkins.plugins.bitbucket.TagDiscoveryTrait'
         puts " " * currentDepth + "bitbucketTagDiscovery()"
         i.elements.each do |ii|
@@ -2099,7 +2157,7 @@ class WorkflowMultiBranchProjectHandler < Struct.new(:node)
           puts " " * currentDepth + "blockOnUpstreamProjects()"
         end
       when 'triggers'
-        # TriggerDefinitionNodeHandler.new(i).process(job_name, currentDepth, indent)
+        TriggerDefinitionNodeHandler.new(i).process(job_name, currentDepth, indent)
       when 'publishers'
         PublishersNodeHandler.new(i).process(job_name, currentDepth, indent)
       when 'builders'
