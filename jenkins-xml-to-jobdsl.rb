@@ -1,6 +1,7 @@
 require 'nokogiri'
 require 'pp'
 require 'optparse'
+require 'digest'
 
 # Bucket to dump any helpers multiple classes may need.
 module Helper
@@ -2360,7 +2361,12 @@ end
 f = File.absolute_path(f)
 d = File.dirname(f)
 job = File.basename(f, '.xml')
+basename = File.basename(f)
 folder = f.split('/')[-2]
+preamble = "# Converted from #{basename} #{Digest::SHA256.hexdigest File.read(f)}"
+
+puts preamble
+
 Nokogiri::XML::Reader(File.open(f)).each do |node|
   if node.name == 'flow-definition' && node.node_type == Nokogiri::XML::Reader::TYPE_ELEMENT
     FlowDefinitionNodeHandler.new(
