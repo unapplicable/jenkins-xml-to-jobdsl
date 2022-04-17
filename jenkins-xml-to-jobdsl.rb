@@ -2363,7 +2363,7 @@ d = File.dirname(f)
 job = File.basename(f, '.xml')
 basename = File.basename(f)
 folder = f.split('/')[-2]
-preamble = "# Converted from #{basename} #{Digest::SHA256.hexdigest File.read(f)}"
+preamble = "// Converted from #{basename} #{Digest::SHA256.hexdigest File.read(f)}\n"
 
 puts preamble
 
