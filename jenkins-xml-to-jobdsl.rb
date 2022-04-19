@@ -1663,33 +1663,25 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
         currentDepth -= indent
         puts " " * currentDepth + "}"
       when 'jenkins.plugins.git.traits.LocalBranchTrait' 
-        puts " " * currentDepth + "localBranchTrait {"
-        currentDepth += indent
-        puts " " * currentDepth + "extension {"
-        currentDepth += indent
+        puts " " * currentDepth + "localBranchTrait()"
         i.elements.each do |ii|
           case ii.name
           when 'extension'
             ii.attributes.each do |aa, vv|
-              if !(aa == 'class' && vv.text == 'hudson.plugins.git.extensions.impl.LocalBranch')
+              unless aa == 'class' && vv.text == 'hudson.plugins.git.extensions.impl.LocalBranch'
                 puts "[-] ERROR BBSCMSourceTraitsHandler LocalBranchTrait extension: unhandled attribute #{aa}=#{vv}"
               end
-              ii.elements.each do |cc|
-                if !(cc.name == 'localBranch')
-                  puts "[-] ERROR BBSCMSourceTraitsHandler LocalBranchTrait extension #{aa}: unhandled element #{cc.name}=#{cc.text}"
-                end
-                puts " " * currentDepth + " #{cc.name}('#{cc.text}')" 
+            end
+            ii.elements.each do |cc|
+              unless cc.name == 'localBranch' && cc.text == '**'
+                puts "[-] ERROR BBSCMSourceTraitsHandler LocalBranchTrait extension #{aa}: unhandled element #{cc.name}=#{cc.text}"
               end
             end
           else
-            puts "[-] ERROR BBSCMSourceTraitsHandler CheckoutOptionTrait: unhandled element #{ii.name}"
+            puts "[-] ERROR BBSCMSourceTraitsHandler LocalBranchTrait: unhandled element #{ii.name}"
             pp ii
           end
         end
-        currentDepth -= indent
-        puts " " * currentDepth + "}"
-        currentDepth -= indent
-        puts " " * currentDepth + "}"
       when 'jenkins.plugins.git.traits.CloneOptionTrait' 
         puts " " * currentDepth + "cloneOptionTrait {"
         currentDepth += indent
