@@ -1829,10 +1829,13 @@ class BBSCMTagBuildStrategyHandler < Struct.new(:node)
     puts " " * depth + "buildTags {"
     currentDepth = depth + indent
     node.elements.each do |i|
-      if !['atLeastMillis', 'atMostMillis'].include? i.name
+      if i.name == 'atLeastMillis'
+        puts " " * currentDepth + " atLeastDays(#{i.text.to_i / 86_400_000})"
+      elsif i.name == 'atMostMillis'
+        puts " " * currentDepth + " atMostDays(#{i.text.to_i / 86_400_000})"
+      else
         puts "[-] ERROR BBBSCMCTagBuildBuildStrategyHandler: unhandled element #{i.name}=#{i.text}"
       end
-      puts " " * currentDepth + " #{i.name}(#{i.text})"
     end
     puts " " * depth + "}"
   end
@@ -1909,19 +1912,7 @@ class BBSCMAnyBranchBuildStrategyHandler < Struct.new(:node)
                 pp iii
             end
           when 'jenkins.branch.buildstrategies.basic.TagBuildStrategyImpl'
-            puts " " * currentDepth + "buildTags {"
-            currentDepth += indent
-            ii.elements.each do |iii|
-              case iii.name
-              when 'atLeastMillis', 'atMostMillis'
-                puts " " * currentDepth + " #{iii.name}('#{iii.text}')"
-              else
-                puts "[-] ERROR BBSCMAnyBranchBuildStrategyHandler strategies TagBuildStrategy: unhandled element #{iii.name}"
-                pp iii
-              end
-            end
-            currentDepth -= indent
-            puts " " * currentDepth + "}"
+            BBSCMTagBuildStrategyHandler.new(ii).process(job_name, currentDepth, indent)
           else
             puts "[-] ERROR BBSCMAnyBranchBuildStrategyHandler strategies: unhandled element #{ii.name}"
             pp ii
