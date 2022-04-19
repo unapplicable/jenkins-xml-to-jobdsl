@@ -1734,7 +1734,7 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
         end
         fprdt = [
           "def traits = it / sources / data / 'jenkins.branch.BranchSource' / source / traits",
-          "traits << 'com.cloudbees.jenkins.plugins.bitbucket.ForkPullRequestDiscoveryTrait' { "
+          "traits << 'com.cloudbees.jenkins.plugins.bitbucket.ForkPullRequestDiscoveryTrait' {"
         ]
         unless strategyId.nil?
           fprdt << " " * indent + "strategyId(#{strategyId})"
