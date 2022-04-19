@@ -1822,9 +1822,9 @@ class BBSCMTagBuildStrategyHandler < Struct.new(:node)
     currentDepth = depth + indent
     node.elements.each do |i|
       if i.name == 'atLeastMillis'
-        puts " " * currentDepth + " atLeastDays(#{i.text.to_i / 86_400_000})"
+        puts " " * currentDepth + " atLeastDays('#{i.text.to_i / 86_400_000}')"
       elsif i.name == 'atMostMillis'
-        puts " " * currentDepth + " atMostDays(#{i.text.to_i / 86_400_000})"
+        puts " " * currentDepth + " atMostDays('#{i.text.to_i / 86_400_000}')"
       else
         puts "[-] ERROR BBBSCMCTagBuildBuildStrategyHandler: unhandled element #{i.name}=#{i.text}"
       end
