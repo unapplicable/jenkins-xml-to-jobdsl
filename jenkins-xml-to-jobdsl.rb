@@ -1693,6 +1693,7 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
       when 'jenkins.plugins.git.traits.CloneOptionTrait' 
         puts " " * currentDepth + "cloneOptionTrait {"
         currentDepth += indent
+        timeoutEmitted = false
         puts " " * currentDepth + "extension {"
         currentDepth += indent
         i.elements.each do |ii|
@@ -1705,6 +1706,9 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
               ii.elements.each do |cc|
                 if !['shallow', 'noTags', 'reference', 'timeout', 'depth', 'honorRefspec'].include? cc.name
                   puts "[-] ERROR BBSCMSourceTraitsHandler CloneOptionTrait extension #{aa}: unhandled element #{cc.name}=#{cc.text}"
+                elsif cc.name == 'timeout'
+                  timeoutEmitted = true
+                  puts " " * currentDepth + " #{cc.name}(#{quoteEmptyString(cc.text)})"
                 else
                   puts " " * currentDepth + " #{cc.name}(#{quoteEmptyString(cc.text)})"
                 end
@@ -1714,6 +1718,9 @@ class BBSCMSourceTraitsHandler < Struct.new(:node)
             puts "[-] ERROR BBSCMSourceTraitsHandler CloneOptionTrait: unhandled element #{ii.name}"
             pp ii
           end
+        end
+        unless timeoutEmitted
+          puts " " * currentDepth + " timeout(10)"
         end
         currentDepth -= indent
         puts " " * currentDepth + "}"
